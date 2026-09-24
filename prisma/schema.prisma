@@ -1,0 +1,402 @@
+// Albright Hardware POS - database schema
+// Run on your laptop (not in this sandbox): npx prisma generate && npx prisma migrate dev
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  manager
+  cashier
+}
+
+enum PayMethod {
+  cash
+  mpesa
+  card
+  bank
+}
+
+enum MoveType {
+  purchase
+  sale
+  return_
+  damaged
+  lost
+  adjustment
+  transfer
+}
+
+enum SaleStatus {
+  completed
+  part_returned
+  returned
+  cancelled
+}
+
+enum ReturnType {
+  customer
+  supplier
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  username     String   @unique
+  passwordHash String
+  role         Role     @default(cashier)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  sales            Sale[]
+  purchases        Purchase[]
+  stockMovements   StockMovement[]
+  expenses         Expense[]
+  auditLogs        AuditLog[]
+  shifts           Shift[]
+  customerPayments CustomerPayment[]
+  supplierPayments SupplierPayment[]
+  returns          Return[]
+}
+
+model Category {
+  id       Int        @id @default(autoincrement())
+  name     String
+  parentId Int?
+  parent   Category?  @relation("CatSub", fields: [parentId], references: [id])
+  children Category[] @relation("CatSub")
+  products Product[]  @relation("ProdCat")
+  subProds Product[]  @relation("ProdSub")
+
+  @@unique([name, parentId])
+}
+
+model Unit {
+  id      Int       @id @default(autoincrement())
+  name    String    @unique
+  decimal Boolean   @default(false)
+  products Product[]
+}
+
+model Supplier {
+  id        Int      @id @default(autoincrement())
+  name      String
+  company   String?
+  phone     String?
+  email     String?
+  location  String?
+  supplies  String?
+  createdAt DateTime @default(now())
+
+  products         Product[]
+  purchases        Purchase[]
+  supplierPayments SupplierPayment[]
+  returns          Return[]
+}
+
+enum CustomerType {
+  walkin
+  contractor
+  builder
+  company
+  regular
+}
+
+model Customer {
+  id           Int          @id @default(autoincrement())
+  name         String
+  phone        String?
+  location     String?
+  type         CustomerType @default(regular)
+  creditLimit  Float        @default(0)
+  createdAt    DateTime     @default(now())
+
+  sales            Sale[]
+  customerPayments CustomerPayment[]
+  returns          Return[]
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  sku         String   @unique
+  barcode     String?  @unique
+  name        String
+  categoryId  Int?
+  subId       Int?
+  unitId      Int
+  buyPrice    Float    @default(0)
+  sellPrice   Float
+  wholesale   Float    @default(0)
+  minSell     Float    @default(0)
+  stock       Float    @default(0)
+  minStock    Float    @default(5)
+  maxStock    Float    @default(0)
+  supplierId  Int?
+  brand       String?
+  description String?
+  location    String?
+  vat         String   @default("std")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  category Category? @relation("ProdCat", fields: [categoryId], references: [id])
+  sub      Category? @relation("ProdSub", fields: [subId], references: [id])
+  unit     Unit      @relation(fields: [unitId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+
+  saleItems       SaleItem[]
+  purchaseItems   PurchaseItem[]
+  stockMovements  StockMovement[]
+  priceLogs       PriceLog[]
+
+  @@index([name])
+}
+
+model StockMovement {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  type      MoveType
+  qty       Float
+  prevStock Float
+  newStock  Float
+  reason    String?
+  ref       String?
+  userId    Int
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([productId])
+  @@index([createdAt])
+}
+
+model Purchase {
+  id         Int      @id @default(autoincrement())
+  no         String   @unique
+  supplierId Int
+  invoice    String?
+  date       DateTime @default(now())
+  dueDate    DateTime?
+  total      Float
+  userId     Int
+  createdAt  DateTime @default(now())
+
+  supplier Supplier       @relation(fields: [supplierId], references: [id])
+  user     User           @relation(fields: [userId], references: [id])
+  items    PurchaseItem[]
+  payments SupplierPayment[]
+}
+
+model PurchaseItem {
+  id         Int      @id @default(autoincrement())
+  purchaseId Int
+  productId  Int
+  qty        Float
+  cost       Float
+  total      Float
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
+}
+
+model SupplierPayment {
+  id         Int       @id @default(autoincrement())
+  supplierId Int
+  purchaseId Int?
+  amount     Float
+  method     PayMethod
+  ref        String?
+  note       String?
+  userId     Int
+  createdAt  DateTime  @default(now())
+
+  supplier Supplier  @relation(fields: [supplierId], references: [id])
+  purchase Purchase? @relation(fields: [purchaseId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
+}
+
+model Sale {
+  id             Int        @id @default(autoincrement())
+  no             String     @unique
+  userId         Int
+  customerId     Int?
+  subtotal       Float
+  discount       Float      @default(0)
+  total          Float
+  cashReceived   Float      @default(0)
+  change         Float      @default(0)
+  creditAmount   Float      @default(0)
+  creditReduced  Float      @default(0)
+  dueDate        DateTime?
+  status         SaleStatus @default(completed)
+  approvedBy     Int?
+  shiftId        Int?
+  createdAt      DateTime   @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+  items    SaleItem[]
+  payments Payment[]
+  returns  Return[]
+}
+
+model SaleItem {
+  id        Int    @id @default(autoincrement())
+  saleId    Int
+  productId Int
+  name      String
+  unit      String
+  factor    Float  @default(1)
+  qty       Float
+  price     Float
+  listPrice Float
+  disc      Float  @default(0)
+  total     Float
+  costTotal Float
+  retQty    Float  @default(0)
+
+  sale    Sale    @relation(fields: [saleId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id        Int       @id @default(autoincrement())
+  saleId    Int
+  method    PayMethod
+  amount    Float
+  ref       String?
+  createdAt DateTime  @default(now())
+
+  sale Sale @relation(fields: [saleId], references: [id])
+}
+
+model CustomerPayment {
+  id         Int       @id @default(autoincrement())
+  customerId Int
+  amount     Float
+  method     PayMethod
+  ref        String?
+  note       String?
+  userId     Int
+  createdAt  DateTime  @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+}
+
+model Return {
+  id           Int        @id @default(autoincrement())
+  no           String     @unique
+  type         ReturnType
+  saleId       Int?
+  supplierId   Int?
+  customerId   Int?
+  total        Float
+  cost         Float      @default(0)
+  creditReduced Float     @default(0)
+  refundCash   Float      @default(0)
+  storeCredit  Float      @default(0)
+  reason       String
+  userId       Int
+  createdAt    DateTime   @default(now())
+
+  sale     Sale?     @relation(fields: [saleId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
+  items    ReturnItem[]
+}
+
+model ReturnItem {
+  id        Int    @id @default(autoincrement())
+  returnId  Int
+  productId Int
+  name      String
+  qty       Float
+  amount    Float
+  cost      Float  @default(0)
+
+  return Return @relation(fields: [returnId], references: [id])
+}
+
+model Expense {
+  id          Int       @id @default(autoincrement())
+  category    String
+  amount      Float
+  date        DateTime  @default(now())
+  method      PayMethod
+  description String?
+  userId      Int
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Shift {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  openCash  Float
+  openedAt  DateTime  @default(now())
+  closedAt  DateTime?
+  expected  Float?
+  counted   Float?
+  variance  Float?
+  notes     String?
+  status    String    @default("open")
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  userName  String
+  action    String
+  ref       String?
+  details   String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+}
+
+model PriceLog {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  field     String
+  oldValue  Float
+  newValue  Float
+  why       String?
+  userId    Int
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+}
+
+/// Atomic counters for receipt/purchase/return numbers (RCP-000001 etc).
+model Counter {
+  key   String @id
+  value Int    @default(0)
+}
+
+model Settings {
+  id          Int     @id @default(1)
+  shopName    String  @default("Albright Hardware Enterprice")
+  address     String  @default("Nairobi, Kenya")
+  phone       String  @default("+254700000000")
+  email       String  @default("")
+  taxPin      String  @default("")
+  footer      String  @default("Thank you for shopping with us!")
+  allowNegative Boolean @default(false)
+  vatEnabled  Boolean @default(false)
+  vatRate     Float   @default(16)
+  creditDays  Int     @default(14)
+}
