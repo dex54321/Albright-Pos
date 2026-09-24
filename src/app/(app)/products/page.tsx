@@ -22,6 +22,22 @@ type Product = {
   category: Category | null;
 };
 
+/**
+ * Deletes a product outright if it has no sales/purchase history yet;
+ * otherwise the server deactivates it instead (kept for old receipts and
+ * reports) and it disappears from the active list here after refresh().
+ */
+async function deleteProduct(p: Product, refresh: () => void) {
+  if (!confirm(`Remove "${p.name}"? If it has sales or purchase history, it will be marked inactive instead of deleted.`)) return;
+  try {
+    const res = await api<{ result: "deleted" | "deactivated" }>(`/api/products/${p.id}`, { method: "DELETE" });
+    alert(res.result === "deleted" ? "Product deleted." : "This product has history, so it was deactivated instead of deleted.");
+    refresh();
+  } catch (e) {
+    alert((e as ApiError).message);
+  }
+}
+
 export default function ProductsPage() {
   const [q, setQ] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
@@ -92,9 +108,12 @@ export default function ProductsPage() {
                   <td className="n">{fmtN(p.buyPrice)}</td>
                   <td className="n">{fmtN(p.sellPrice)}</td>
                   <td className={`n ${profit < 0 ? "text-rose-600" : ""}`}>{margin.toFixed(1)}%</td>
-                  <td className="n">
+                  <td className="n" style={{ whiteSpace: "nowrap" }}>
                     <button className="btn" onClick={() => setEditing(p)}>
                       Edit
+                    </button>{" "}
+                    <button className="btn" onClick={() => deleteProduct(p, refresh)}>
+                      Delete
                     </button>
                   </td>
                 </tr>
