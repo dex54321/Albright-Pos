@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     await requireUser("cashier");
     const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
     const activeOnly = req.nextUrl.searchParams.get("active") !== "0";
-    const limit = Math.min(500, Number(req.nextUrl.searchParams.get("limit") ?? 100));
+    const limit = Math.min(5000, Number(req.nextUrl.searchParams.get("limit") ?? 100));
     const where = {
       ...(activeOnly ? { active: true } : {}),
       ...(q

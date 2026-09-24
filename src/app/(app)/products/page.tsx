@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { api, fmtN, ApiError } from "@/lib/client";
 import Modal from "@/components/Modal";
+import ImportWizard from "@/components/ImportWizard";
 
 type Unit = { id: number; name: string };
 type Category = { id: number; name: string; parentId: number | null };
@@ -28,6 +29,7 @@ export default function ProductsPage() {
   const [cats, setCats] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [editing, setEditing] = useState<Product | "new" | null>(null);
+  const [importing, setImporting] = useState(false);
 
   function refresh() {
     const params = new URLSearchParams({ limit: "300", active: "0" });
@@ -46,6 +48,9 @@ export default function ProductsPage() {
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-xl font-bold">Products</h1>
         <input className="input w-56" placeholder="Search products..." value={q} onChange={(e) => setQ(e.target.value)} />
+        <button className="btn" onClick={() => setImporting(true)}>
+          Import CSV
+        </button>
         <button className="btn btn-pri" onClick={() => setEditing("new")}>
           + Add product
         </button>
@@ -114,6 +119,15 @@ export default function ProductsPage() {
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
+            refresh();
+          }}
+        />
+      )}
+      {importing && (
+        <ImportWizard
+          onClose={() => setImporting(false)}
+          onImported={() => {
+            setImporting(false);
             refresh();
           }}
         />
