@@ -14,10 +14,21 @@ function daysAgo(n: number) {
 type Report = { rows: Record<string, string | number>[]; summary: Record<string, string | number> };
 
 export default function ReportsPage() {
-  const [type, setType] = useState<"sales" | "profit" | "inventory">("sales");
+  const [type, setType] = useState<"sales" | "profit" | "items" | "inventory">("sales");
   const [from, setFrom] = useState(daysAgo(29));
   const [to, setTo] = useState(today());
   const [data, setData] = useState<Report | null>(null);
+
+  // Lets the dashboard link straight to e.g. /reports?type=items&from=2026-09-28&to=2026-09-28
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const t = q.get("type");
+    if (t === "sales" || t === "profit" || t === "items" || t === "inventory") setType(t);
+    const f = q.get("from");
+    const to2 = q.get("to");
+    if (f) setFrom(f);
+    if (to2) setTo(to2);
+  }, []);
 
   useEffect(() => {
     api<Report>(`/api/reports?type=${type}&from=${from}&to=${to}`).then(setData);
@@ -41,6 +52,7 @@ export default function ReportsPage() {
         <select className="input w-auto" value={type} onChange={(e) => setType(e.target.value as typeof type)}>
           <option value="sales">Sales</option>
           <option value="profit">Profit &amp; loss</option>
+          <option value="items">Items sold</option>
           <option value="inventory">Inventory</option>
         </select>
         {type !== "inventory" && (

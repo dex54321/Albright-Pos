@@ -14,15 +14,23 @@ type Dash = {
   days: { l: string; v: number }[];
 };
 
-function Kpi({ label, value, big, tone }: { label: string; value: string; big?: boolean; tone?: string }) {
-  return (
+function Kpi({ label, value, big, tone, href }: { label: string; value: string; big?: boolean; tone?: string; href?: string }) {
+  const box = (
     <div
-      className={`card ${big ? "col-span-2" : ""}`}
+      className={`card ${big && !href ? "col-span-2" : ""}`}
       style={big ? { background: "var(--steel)", color: "#fff" } : undefined}
     >
       <div className={`text-xs ${big ? "text-slate-300" : "text-slate-500"}`}>{label}</div>
       <div className={`mt-1 font-extrabold tabular-nums ${big ? "text-3xl" : "text-xl"} ${tone ?? ""}`}>{value}</div>
+      {href && <div className={`mt-1 text-xs underline ${big ? "text-amber-300" : "text-blue-600"}`}>See which items sold</div>}
     </div>
+  );
+  return href ? (
+    <Link href={href} className={big ? "col-span-2 block" : "block"}>
+      {box}
+    </Link>
+  ) : (
+    box
   );
 }
 
@@ -51,11 +59,13 @@ export default function DashboardPage() {
   if (err) return <div className="rounded-md bg-rose-50 p-4 text-rose-700">{err}</div>;
   if (!d) return <div className="text-slate-500">Loading...</div>;
 
+  const todayIso = new Date().toISOString().slice(0, 10);
+
   return (
     <div className="space-y-5">
       <h1 className="text-xl font-bold">Dashboard</h1>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Kpi big label="Today's sales" value={fmt(d.today.revenue)} />
+        <Kpi big label="Today's sales" value={fmt(d.today.revenue)} href={`/reports?type=items&from=${todayIso}&to=${todayIso}`} />
         <Kpi label="Today's profit" value={fmt(d.today.profit)} tone={d.today.profit < 0 ? "text-rose-600" : "text-emerald-600"} />
         <Kpi label="Transactions today" value={String(d.today.count)} />
         <Kpi label="Cash sales" value={fmt(d.today.cash)} />

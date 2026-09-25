@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser, withErrors } from "@/lib/apiAuth";
 import { dayRangeUTC, r2, addDays } from "@/lib/num";
+import { aggregateItems } from "@/lib/itemsReport";
 
 export async function GET(req: NextRequest) {
   return withErrors(async () => {
@@ -41,6 +42,18 @@ export async function GET(req: NextRequest) {
           profit: r2(rows.reduce((a, r) => a + r.profit, 0)),
           expenses: r2(rows.reduce((a, r) => a + r.expenses, 0)),
           net: r2(rows.reduce((a, r) => a + r.net, 0)),
+        },
+      };
+    }
+    if (type === "items") {
+      const sales = await prisma.sale.findMany({ where: { createdAt: range }, include: { items: true } });
+      const rows = aggregateItems(sales);
+      return {
+        rows,
+        summary: {
+          products: rows.length,
+          sales: r2(rows.reduce((a, r) => a + r.revenue, 0)),
+          profit: r2(rows.reduce((a, r) => a + r.profit, 0)),
         },
       };
     }
