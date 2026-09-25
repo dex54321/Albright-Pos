@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, fmt, fmtN, ApiError } from "@/lib/client";
 import Modal from "@/components/Modal";
+import { PAYBILL, PAYBILL_ACCOUNT } from "@/lib/paybill";
 
 type Product = {
   id: number;
@@ -158,9 +159,12 @@ export default function PosPage() {
                     -
                   </button>
                   <input
-                    className="h-8 w-14 border-y border-slate-300 text-center"
-                    value={l.qty}
-                    onChange={(e) => setQty(i, Number(e.target.value) || 0)}
+                    className="h-8 w-16 border-y border-slate-300 text-center"
+                    key={l.pid + "-" + l.qty}
+                    defaultValue={l.qty}
+                    inputMode="decimal"
+                    onBlur={(e) => setQty(i, Number(e.target.value) || 0)}
+                    onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
                   />
                   <button className="h-8 w-8 border border-slate-300 bg-slate-100 font-bold" onClick={() => setQty(i, l.qty + 1)}>
                     +
@@ -431,6 +435,27 @@ function PayModal({
           </div>
         </div>
       )}
+      {(mode === "mpesa" || (mode === "mixed" && mpN > 0)) && (
+        <div className="mb-2 rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm">
+          <div className="mb-1 font-semibold text-emerald-900">Ask the customer to pay by M-Pesa:</div>
+          <div className="text-emerald-900">M-Pesa &gt; Lipa na M-Pesa &gt; Paybill</div>
+          <div className="mt-1 grid grid-cols-3 gap-2 text-center">
+            <div className="rounded bg-white p-2">
+              <div className="text-[11px] text-slate-500">Business no.</div>
+              <div className="text-xl font-extrabold tabular-nums">{PAYBILL}</div>
+            </div>
+            <div className="rounded bg-white p-2">
+              <div className="text-[11px] text-slate-500">Account no.</div>
+              <div className="text-xl font-extrabold tabular-nums">{PAYBILL_ACCOUNT}</div>
+            </div>
+            <div className="rounded bg-white p-2">
+              <div className="text-[11px] text-slate-500">Amount</div>
+              <div className="text-xl font-extrabold tabular-nums">{fmtN(mpN)}</div>
+            </div>
+          </div>
+          <div className="mt-1 text-xs text-emerald-800">Then type the M-Pesa code from their confirmation message below.</div>
+        </div>
+      )}
       {(mode === "mpesa" || mode === "mixed") && (mode === "mpesa" || mpN > 0 || mode === "mixed") && (
         <div className="mb-2">
           <label className="label">M-Pesa transaction code</label>
@@ -543,6 +568,11 @@ function ReceiptModal({ id, onClose }: { id: number; onClose: () => void }) {
             </div>
           )}
           <hr className="my-2 border-dashed" />
+          {sale.creditAmount > 0 && (
+            <div className="mb-1 text-center">
+              Pay by M-Pesa Paybill {PAYBILL}, Acc {PAYBILL_ACCOUNT}
+            </div>
+          )}
           <div className="text-center">Thank you for shopping with us!</div>
         </div>
       )}
