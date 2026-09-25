@@ -40,6 +40,7 @@ async function deleteProduct(p: Product, refresh: () => void) {
 
 export default function ProductsPage() {
   const [q, setQ] = useState("");
+  const [stockFilter, setStockFilter] = useState<"" | "in" | "low" | "out">("");
   const [products, setProducts] = useState<Product[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
@@ -48,7 +49,7 @@ export default function ProductsPage() {
   const [importing, setImporting] = useState(false);
 
   function refresh() {
-    const params = new URLSearchParams({ limit: "300", active: "0" });
+    const params = new URLSearchParams({ limit: "5000", active: "0" });
     if (q) params.set("q", q);
     api<Product[]>("/api/products?" + params.toString()).then(setProducts);
   }
@@ -59,11 +60,26 @@ export default function ProductsPage() {
     api<Supplier[]>("/api/suppliers").then(setSuppliers);
   }, []);
 
+  const shown = products.filter((p) => {
+    if (stockFilter === "out") return p.stock <= 0;
+    if (stockFilter === "low") return p.stock > 0 && p.stock <= p.minStock;
+    if (stockFilter === "in") return p.stock > p.minStock;
+    return true;
+  });
+  const lowCount = products.filter((p) => p.stock > 0 && p.stock <= p.minStock).length;
+  const outCount = products.filter((p) => p.stock <= 0).length;
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <h1 className="mr-auto text-xl font-bold">Products</h1>
         <input className="input w-56" placeholder="Search products..." value={q} onChange={(e) => setQ(e.target.value)} />
+        <select className="input w-auto" value={stockFilter} onChange={(e) => setStockFilter(e.target.value as typeof stockFilter)}>
+          <option value="">All stock ({products.length})</option>
+          <option value="in">In stock</option>
+          <option value="low">Low stock ({lowCount})</option>
+          <option value="out">Out of stock ({outCount})</option>
+        </select>
         <button className="btn" onClick={() => setImporting(true)}>
           Import CSV
         </button>
@@ -86,7 +102,7 @@ export default function ProductsPage() {
             </tr>
           </thead>
           <tbody>
-            {products.map((p) => {
+            {shown.map((p) => {
               const profit = p.sellPrice - p.buyPrice;
               const margin = p.sellPrice ? (profit / p.sellPrice) * 100 : 0;
               const low = p.stock > 0 && p.stock <= p.minStock;
@@ -119,7 +135,7 @@ export default function ProductsPage() {
                 </tr>
               );
             })}
-            {products.length === 0 && (
+            {shown.length === 0 && (
               <tr>
                 <td colSpan={8} className="p-6 text-center text-slate-400">
                   No products
