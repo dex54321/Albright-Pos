@@ -47,6 +47,7 @@ export default function ProductsPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [editing, setEditing] = useState<Product | "new" | null>(null);
   const [importing, setImporting] = useState(false);
+  const [adjusting, setAdjusting] = useState<Product | null>(null);
 
   function refresh() {
     const params = new URLSearchParams({ limit: "5000", active: "0" });
@@ -125,6 +126,9 @@ export default function ProductsPage() {
                   <td className="n">{fmtN(p.sellPrice)}</td>
                   <td className={`n ${profit < 0 ? "text-rose-600" : ""}`}>{margin.toFixed(1)}%</td>
                   <td className="n" style={{ whiteSpace: "nowrap" }}>
+                    <button className="btn" onClick={() => setAdjusting(p)}>
+                      Adjust stock
+                    </button>{" "}
                     <button className="btn" onClick={() => setEditing(p)}>
                       Edit
                     </button>{" "}
@@ -154,6 +158,16 @@ export default function ProductsPage() {
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
+            refresh();
+          }}
+        />
+      )}
+      {adjusting && (
+        <AdjustStockModal
+          product={adjusting}
+          onClose={() => setAdjusting(null)}
+          onSaved={() => {
+            setAdjusting(null);
             refresh();
           }}
         />
@@ -281,6 +295,13 @@ function ProductForm({
             <input className="input" value={f.stock} onChange={(e) => setF({ ...f, stock: Number(e.target.value) || 0 })} />
           </div>
         )}
+        {product && (
+          <div>
+            <label className="label">Current stock</label>
+            <input className="input" value={`${product.stock} ${product.unit.name}`} readOnly disabled />
+            <div className="hint mt-1 text-xs text-slate-400">Use &quot;Adjust stock&quot; on the products list to change this.</div>
+          </div>
+        )}
         <div>
           <label className="label">Minimum stock level</label>
           <input className="input" value={f.minStock} onChange={(e) => setF({ ...f, minStock: Number(e.target.value) || 0 })} />
@@ -305,6 +326,96 @@ function ProductForm({
         </button>
         <button className="btn btn-pri" disabled={busy} onClick={save}>
           Save
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+const MOVE_TYPES: [string, string][] = [
+  ["adjustment", "Manual adjustment"],
+  ["damaged", "Damaged"],
+  ["lost", "Lost"],
+  ["transfer", "Stock transfer"],
+];
+
+function AdjustStockModal({ product, onClose, onSaved }: { product: Product; onClose: () => void; onSaved: () => void }) {
+  const [mode, setMode] = useState<"add" | "remove" | "set">("add");
+  const [type, setType] = useState("adjustment");
+  const [qty, setQty] = useState("");
+  const [reason, setReason] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const preview =
+    mode === "add" ? product.stock + (Number(qty) || 0) : mode === "remove" ? product.stock - (Number(qty) || 0) : Number(qty) || 0;
+
+  async function save() {
+    if (!reason.trim()) {
+      setErr("Enter a reason for this change");
+      return;
+    }
+    if (qty === "" || Number(qty) < 0) {
+      setErr("Enter a quantity");
+      return;
+    }
+    setBusy(true);
+    setErr("");
+    try {
+      await api(`/api/products/${product.id}/adjust`, { method: "POST", body: JSON.stringify({ mode, type, qty: Number(qty), reason }) });
+      onSaved();
+    } catch (e) {
+      setErr((e as ApiError).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title={"Adjust stock - " + product.name} onClose={onClose}>
+      <p className="mt-0 text-sm text-slate-600">
+        Currently <b>{product.stock}</b> {product.unit.name} in stock.
+      </p>
+      <div className="space-y-2">
+        <div>
+          <label className="label">What are you doing?</label>
+          <select className="input" value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
+            <option value="add">Add stock (found extra, correction upward)</option>
+            <option value="remove">Remove stock (damaged, lost, correction downward)</option>
+            <option value="set">Set exact counted quantity (after a physical stock count)</option>
+          </select>
+        </div>
+        <div>
+          <label className="label">Type</label>
+          <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
+            {MOVE_TYPES.map(([v, l]) => (
+              <option key={v} value={v}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">{mode === "set" ? "Counted quantity" : "Quantity"}</label>
+          <input className="input" value={qty} onChange={(e) => setQty(e.target.value)} inputMode="decimal" placeholder={product.unit.name} />
+          {qty !== "" && !isNaN(Number(qty)) && (
+            <div className="mt-1 text-xs text-slate-500">
+              New stock will be <b>{preview}</b> {product.unit.name}
+            </div>
+          )}
+        </div>
+        <div>
+          <label className="label">Reason *</label>
+          <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. physical count, broke during offloading" />
+        </div>
+      </div>
+      {err && <div className="mt-2 text-sm text-rose-600">{err}</div>}
+      <div className="mt-4 flex justify-end gap-2">
+        <button className="btn" onClick={onClose}>
+          Cancel
+        </button>
+        <button className="btn btn-pri" disabled={busy} onClick={save}>
+          Save adjustment
         </button>
       </div>
     </Modal>
