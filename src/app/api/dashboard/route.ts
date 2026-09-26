@@ -37,7 +37,7 @@ async function calc(from: string, to: string) {
 
 export async function GET(req: NextRequest) {
   return withErrors(async () => {
-    await requireUser("cashier");
+    await requireUser("manager");
     const today = todayStr();
     const [todayC, low, out, recentSales, recentPurchases] = await Promise.all([
       calc(today, today),
@@ -46,6 +46,12 @@ export async function GET(req: NextRequest) {
       prisma.sale.findMany({ include: { user: true, customer: true }, orderBy: { createdAt: "desc" }, take: 8 }),
       prisma.purchase.findMany({ include: { supplier: true }, orderBy: { createdAt: "desc" }, take: 5 }),
     ]);
+    const recentAdjustments = await prisma.stockMovement.findMany({
+      where: { type: { in: ["adjustment", "damaged", "lost", "transfer"] } },
+      include: { user: true },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
     const products = await prisma.product.findMany({ where: { active: true }, select: { stock: true, buyPrice: true, sellPrice: true } });
     const stockCost = r2(products.reduce((a, p) => a + Math.max(p.stock, 0) * p.buyPrice, 0));
     const stockRetail = r2(products.reduce((a, p) => a + Math.max(p.stock, 0) * p.sellPrice, 0));
@@ -65,6 +71,7 @@ export async function GET(req: NextRequest) {
       outOfStock: out,
       recentSales,
       recentPurchases,
+      recentAdjustments,
       days,
     };
   });

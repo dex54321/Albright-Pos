@@ -5,7 +5,7 @@ import { signOut } from "next-auth/react";
 import { useState } from "react";
 
 const NAV: [string, string, string[]][] = [
-  ["/dashboard", "Dashboard", ["admin", "manager", "cashier"]],
+  ["/dashboard", "Dashboard", ["admin", "manager"]],
   ["/pos", "POS", ["admin", "manager", "cashier"]],
   ["/sales", "Sales & Returns", ["admin", "manager", "cashier"]],
   ["/products", "Products", ["admin", "manager"]],

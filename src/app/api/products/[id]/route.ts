@@ -50,7 +50,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return withErrors(async () => {
-    const user = await requireUser("manager");
+    const user = await requireUser("admin");
     const id = Number((await params).id);
     const p = await prisma.product.findUnique({ where: { id } });
     if (!p) throw new AppError("Product not found", { status: 404 });

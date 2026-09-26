@@ -20,7 +20,7 @@ export default function LoginPage() {
       setErr("Wrong username or password");
       return;
     }
-    router.push("/dashboard");
+    router.push("/");
     router.refresh();
   }
 
