@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, fmt, fmtN, ApiError } from "@/lib/client";
 import Modal from "@/components/Modal";
 import { PAYBILL, PAYBILL_ACCOUNT } from "@/lib/paybill";
+import { useCart, type CartLine, type CartCustomer } from "@/lib/cartStore";
 
 type Product = {
   id: number;
@@ -16,17 +17,14 @@ type Product = {
   category: { id: number; name: string } | null;
 };
 type Category = { id: number; name: string; parentId: number | null };
-type Customer = { id: number; name: string; phone: string | null; balance: number };
-type CartLine = { pid: number; name: string; unit: string; qty: number; price: number; list: number; disc: number; stock: number; minSell: number };
+type Customer = CartCustomer;
 
 export default function PosPage() {
   const [q, setQ] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [cats, setCats] = useState<Category[]>([]);
   const [catId, setCatId] = useState<number | "">("");
-  const [cart, setCart] = useState<CartLine[]>([]);
-  const [discount, setDiscount] = useState(0);
-  const [customer, setCustomer] = useState<Customer | null>(null);
+  const { cart, setCart, discount, setDiscount, customer, setCustomer, clearSale } = useCart();
   const [showPay, setShowPay] = useState(false);
   const [receipt, setReceipt] = useState<{ id: number; no: string; total: number } | null>(null);
   const [err, setErr] = useState("");
@@ -211,9 +209,7 @@ export default function PosPage() {
           <button
             className="btn col-span-3"
             onClick={() => {
-              setCart([]);
-              setDiscount(0);
-              setCustomer(null);
+              clearSale();
             }}
           >
             Clear sale
@@ -230,9 +226,7 @@ export default function PosPage() {
           onClose={() => setShowPay(false)}
           onDone={(sale) => {
             setShowPay(false);
-            setCart([]);
-            setDiscount(0);
-            setCustomer(null);
+            clearSale();
             setReceipt(sale);
           }}
         />
