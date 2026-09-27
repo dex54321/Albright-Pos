@@ -16,7 +16,10 @@ type Dash = {
 
 function Kpi({ label, value, big, tone }: { label: string; value: string; big?: boolean; tone?: string }) {
   return (
-    <div className={`card ${big ? "col-span-2 bg-[var(--steel)] text-white" : ""}`}>
+    <div
+      className={`card ${big ? "col-span-2" : ""}`}
+      style={big ? { background: "var(--steel)", color: "#fff" } : undefined}
+    >
       <div className={`text-xs ${big ? "text-slate-300" : "text-slate-500"}`}>{label}</div>
       <div className={`mt-1 font-extrabold tabular-nums ${big ? "text-3xl" : "text-xl"} ${tone ?? ""}`}>{value}</div>
     </div>
