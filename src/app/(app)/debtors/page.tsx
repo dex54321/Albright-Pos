@@ -19,7 +19,7 @@ export default function DebtorsPage() {
   return (
     <div className="space-y-3">
       <h1 className="text-xl font-bold">Credit / Debtors</h1>
-      <div className="card bg-[var(--steel)] text-white">
+      <div className="card" style={{ background: "var(--steel)", color: "#fff" }}>
         <div className="text-xs text-slate-300">Total owed by customers</div>
         <div className="text-3xl font-extrabold">{fmt(total)}</div>
         <div className="text-xs text-slate-300">{list.length} customer(s) with balances</div>
