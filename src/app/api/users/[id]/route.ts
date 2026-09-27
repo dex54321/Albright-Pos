@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { requireUser, withErrors } from "@/lib/apiAuth";
 import { AppError } from "@/lib/num";
+import type { Role } from "@prisma/client";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return withErrors(async () => {
@@ -17,9 +18,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (otherAdmins < 1) throw new AppError("You need at least one active admin");
     }
 
-    const data: { name: string; role: string; active: boolean; passwordHash?: string } = {
+    const data: { name: string; role: Role; active: boolean; passwordHash?: string } = {
       name: b.name,
-      role: b.role,
+      role: b.role as Role,
       active: !!b.active,
     };
     if (b.password) {
