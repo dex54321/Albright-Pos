@@ -8,6 +8,7 @@ type Customer = { id: number; name: string; phone: string; balance: number; cred
 export default function DebtorsPage() {
   const [list, setList] = useState<Customer[]>([]);
   const [payFor, setPayFor] = useState<Customer | null>(null);
+  const [viewing, setViewing] = useState<Customer | null>(null);
 
   function refresh() {
     api<Customer[]>("/api/customers").then((cs) => setList(cs.filter((c) => c.balance > 0.005).sort((a, b) => b.balance - a.balance)));
@@ -42,7 +43,10 @@ export default function DebtorsPage() {
                 <td>{c.phone}</td>
                 <td className="n">{c.creditLimit ? fmtN(c.creditLimit) : "-"}</td>
                 <td className="n font-bold text-rose-600">{fmtN(c.balance)}</td>
-                <td className="n">
+                <td className="n" style={{ whiteSpace: "nowrap" }}>
+                  <button className="btn" onClick={() => setViewing(c)}>
+                    View items
+                  </button>{" "}
                   <button className="btn btn-pri" onClick={() => setPayFor(c)}>
                     Receive payment
                   </button>
@@ -59,6 +63,7 @@ export default function DebtorsPage() {
           </tbody>
         </table>
       </div>
+      {viewing && <CreditItemsModal customer={viewing} onClose={() => setViewing(null)} />}
       {payFor && (
         <PayModal
           customer={payFor}
@@ -119,6 +124,91 @@ function PayModal({ customer, onClose, onSaved }: { customer: Customer; onClose:
         </button>
         <button className="btn btn-pri" disabled={busy} onClick={save}>
           Record payment
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+type CreditSale = {
+  id: number;
+  no: string;
+  date: string;
+  dueDate: string | null;
+  creditAmount: number;
+  creditReduced: number;
+  balance: number;
+  items: { name: string; unit: string; qty: number; price: number; total: number }[];
+};
+
+function CreditItemsModal({ customer, onClose }: { customer: Customer; onClose: () => void }) {
+  const [sales, setSales] = useState<CreditSale[] | null>(null);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    api<CreditSale[]>(`/api/customers/${customer.id}/credit-sales`)
+      .then(setSales)
+      .catch((e) => setErr((e as ApiError).message));
+  }, [customer.id]);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  return (
+    <Modal title={"Items on credit - " + customer.name} onClose={onClose}>
+      {err && <div className="text-sm text-rose-600">{err}</div>}
+      {!sales && !err && <div className="text-sm text-slate-400">Loading...</div>}
+      {sales && sales.length === 0 && <div className="text-sm text-slate-400">No credit sales recorded for this customer.</div>}
+      {sales && sales.length > 0 && (
+        <div className="max-h-[60vh] space-y-4 overflow-auto">
+          {sales.map((s) => {
+            const overdue = s.balance > 0.005 && s.dueDate && s.dueDate.slice(0, 10) < today;
+            return (
+              <div key={s.id} className="rounded-lg border border-slate-200 p-3">
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <div>
+                    <b>{s.no}</b> <span className="text-slate-400">{new Date(s.date).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={overdue ? "font-semibold text-rose-600" : "text-slate-500"}>
+                      Due {s.dueDate ? new Date(s.dueDate).toLocaleDateString() : "-"}
+                      {overdue ? " (overdue)" : ""}
+                    </span>
+                    <span className={`badge ${s.balance <= 0.005 ? "badge-g" : "badge-r"}`}>
+                      {s.balance <= 0.005 ? "Paid off" : fmtN(s.balance) + " owed"}
+                    </span>
+                  </div>
+                </div>
+                <table className="tbl w-full">
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th className="n">Qty</th>
+                      <th className="n">Price</th>
+                      <th className="n">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {s.items.map((it, i) => (
+                      <tr key={i}>
+                        <td>{it.name}</td>
+                        <td className="n">
+                          {it.qty} {it.unit}
+                        </td>
+                        <td className="n">{fmtN(it.price)}</td>
+                        <td className="n">{fmtN(it.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="mt-1 text-right text-sm text-slate-500">Taken on credit: {fmt(s.creditAmount)}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="mt-4 flex justify-end">
+        <button className="btn" onClick={onClose}>
+          Close
         </button>
       </div>
     </Modal>
