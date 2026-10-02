@@ -45,8 +45,59 @@ export async function GET(req: NextRequest) {
         },
       };
     }
+    if (type === "ledger") {
+      const sales = await prisma.sale.findMany({
+        where: { createdAt: range },
+        include: { items: { include: { product: { include: { unit: true } } } } },
+        orderBy: { createdAt: "asc" },
+      });
+      type LedgerRow = { date: string; item: string; unit: string; qty: number | string; buyPrice: number | string; totalBuy: number | string; sellPrice: number | string; totalSell: number | string; profit: number | string };
+      const rows: LedgerRow[] = [];
+      let dayDate = "";
+      let daySales = 0;
+      let dayProfit = 0;
+      const flushDay = () => {
+        if (!dayDate) return;
+        rows.push({ date: dayDate, item: "Day total", unit: "", qty: "", buyPrice: "", totalBuy: "", sellPrice: "", totalSell: r2(daySales), profit: r2(dayProfit) });
+      };
+      for (const s of sales) {
+        const ratio = s.subtotal > 0 ? s.total / s.subtotal : 1;
+        const d = s.createdAt.toISOString().slice(0, 10);
+        if (d !== dayDate) {
+          flushDay();
+          dayDate = d;
+          daySales = 0;
+          dayProfit = 0;
+        }
+        for (const i of s.items) {
+          const keep = i.qty > 0 ? (i.qty - i.retQty) / i.qty : 0;
+          if (keep <= 1e-9) continue;
+          const qty = r2((i.qty - i.retQty) * (i.factor || 1));
+          const totalSell = r2(i.total * keep * ratio);
+          const totalBuy = r2(i.costTotal * keep);
+          const sellPrice = qty ? r2(totalSell / qty) : 0;
+          const profit = r2(totalSell - totalBuy);
+          rows.push({ date: d, item: i.name, unit: i.product.unit.name, qty, buyPrice: i.product.buyPrice, totalBuy, sellPrice, totalSell, profit });
+          daySales += totalSell;
+          dayProfit += profit;
+        }
+      }
+      flushDay();
+      const grand = rows.filter((r) => r.item === "Day total");
+      return {
+        rows,
+        summary: {
+          days: grand.length,
+          totalSales: r2(grand.reduce((a, r) => a + (Number(r.totalSell) || 0), 0)),
+          totalProfit: r2(grand.reduce((a, r) => a + (Number(r.profit) || 0), 0)),
+        },
+      };
+    }
     if (type === "items") {
-      const sales = await prisma.sale.findMany({ where: { createdAt: range }, include: { items: true } });
+      const sales = await prisma.sale.findMany({
+        where: { createdAt: range },
+        include: { items: { include: { product: { include: { unit: true } } } } },
+      });
       const rows = aggregateItems(sales);
       return {
         rows,

@@ -14,7 +14,7 @@ function daysAgo(n: number) {
 type Report = { rows: Record<string, string | number>[]; summary: Record<string, string | number> };
 
 export default function ReportsPage() {
-  const [type, setType] = useState<"sales" | "profit" | "items" | "inventory">("sales");
+  const [type, setType] = useState<"sales" | "profit" | "items" | "ledger" | "inventory">("sales");
   const [from, setFrom] = useState(daysAgo(29));
   const [to, setTo] = useState(today());
   const [data, setData] = useState<Report | null>(null);
@@ -53,6 +53,7 @@ export default function ReportsPage() {
           <option value="sales">Sales</option>
           <option value="profit">Profit &amp; loss</option>
           <option value="items">Items sold</option>
+          <option value="ledger">Sales ledger (detailed)</option>
           <option value="inventory">Inventory</option>
         </select>
         {type !== "inventory" && (
