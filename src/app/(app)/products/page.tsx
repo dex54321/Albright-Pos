@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useSession } from "next-auth/react";
 import { api, fmtN, ApiError } from "@/lib/client";
 import Modal from "@/components/Modal";
 import ImportWizard from "@/components/ImportWizard";
@@ -39,6 +40,8 @@ async function deleteProduct(p: Product, refresh: () => void) {
 }
 
 export default function ProductsPage() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user.role === "admin";
   const [q, setQ] = useState("");
   const [stockFilter, setStockFilter] = useState<"" | "in" | "low" | "out">("");
   const [products, setProducts] = useState<Product[]>([]);
@@ -131,10 +134,15 @@ export default function ProductsPage() {
                     </button>{" "}
                     <button className="btn" onClick={() => setEditing(p)}>
                       Edit
-                    </button>{" "}
-                    <button className="btn" onClick={() => deleteProduct(p, refresh)}>
-                      Delete
                     </button>
+                    {isAdmin && (
+                      <>
+                        {" "}
+                        <button className="btn" onClick={() => deleteProduct(p, refresh)}>
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               );
@@ -154,6 +162,7 @@ export default function ProductsPage() {
           product={editing === "new" ? null : editing}
           units={units}
           cats={cats}
+          setCats={setCats}
           suppliers={suppliers}
           onClose={() => setEditing(null)}
           onSaved={() => {
@@ -189,6 +198,7 @@ function ProductForm({
   product,
   units,
   cats,
+  setCats,
   suppliers,
   onClose,
   onSaved,
@@ -196,6 +206,7 @@ function ProductForm({
   product: Product | null;
   units: Unit[];
   cats: Category[];
+  setCats: Dispatch<SetStateAction<Category[]>>;
   suppliers: Supplier[];
   onClose: () => void;
   onSaved: () => void;
@@ -234,6 +245,18 @@ function ProductForm({
     }
   }
 
+  async function addCategory() {
+    const name = prompt("New category name, e.g. Adhesives");
+    if (!name?.trim()) return;
+    try {
+      const c = await api<Category>("/api/categories", { method: "POST", body: JSON.stringify({ name: name.trim() }) });
+      setCats((prev) => [...prev, c]);
+      setF((prev) => ({ ...prev, categoryId: c.id }));
+    } catch (e) {
+      alert((e as ApiError).message);
+    }
+  }
+
   const margin = f.sellPrice ? (((f.sellPrice - f.buyPrice) / f.sellPrice) * 100).toFixed(1) : "0";
 
   return (
@@ -244,7 +267,12 @@ function ProductForm({
           <input className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
         </div>
         <div>
-          <label className="label">Category</label>
+          <label className="label">
+            Category{" "}
+            <button type="button" className="text-xs text-blue-600 underline" onClick={addCategory}>
+              + New
+            </button>
+          </label>
           <select className="input" value={f.categoryId} onChange={(e) => setF({ ...f, categoryId: Number(e.target.value) })}>
             {cats
               .filter((c) => !c.parentId)
