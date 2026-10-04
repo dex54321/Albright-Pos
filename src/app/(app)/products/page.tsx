@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { api, fmtN, ApiError } from "@/lib/client";
 import Modal from "@/components/Modal";
 import ImportWizard from "@/components/ImportWizard";
+import { getCategoryIcon, getCategoryColor } from "@/lib/categoryIcons";
 
 type Unit = { id: number; name: string };
 type Category = { id: number; name: string; parentId: number | null };
@@ -114,10 +115,23 @@ export default function ProductsPage() {
               return (
                 <tr key={p.id}>
                   <td>
-                    <div className="font-semibold">{p.name}</div>
-                    <div className="text-xs text-slate-400">
-                      {p.sku}
-                      {!p.active ? " | inactive" : ""}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-md"
+                        style={{ background: getCategoryColor(p.category?.name) }}
+                      >
+                        {(() => {
+                          const Icon = getCategoryIcon(p.category?.name);
+                          return <Icon size={16} strokeWidth={1.75} className="text-slate-700/70" />;
+                        })()}
+                      </div>
+                      <div>
+                        <div className="font-semibold">{p.name}</div>
+                        <div className="text-xs text-slate-400">
+                          {p.sku}
+                          {!p.active ? " | inactive" : ""}
+                        </div>
+                      </div>
                     </div>
                   </td>
                   <td>{p.category?.name ?? ""}</td>

@@ -4,6 +4,7 @@ import { api, fmt, fmtN, ApiError } from "@/lib/client";
 import Modal from "@/components/Modal";
 import { PAYBILL, PAYBILL_ACCOUNT } from "@/lib/paybill";
 import { useCart, type CartLine, type CartCustomer } from "@/lib/cartStore";
+import { getCategoryIcon, getCategoryColor } from "@/lib/categoryIcons";
 
 type Product = {
   id: number;
@@ -117,15 +118,17 @@ export default function PosPage() {
         </div>
         {err && <div className="mb-3 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{err}</div>}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-          {products.map((p) => (
+          {products.map((p) => {
+            const Icon = getCategoryIcon(p.category?.name);
+            return (
             <button
               key={p.id}
               onClick={() => addProduct(p)}
               disabled={p.stock <= 0}
               className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white text-left disabled:opacity-50"
             >
-              <div className="flex h-11 items-center justify-center bg-slate-100 text-lg font-bold text-slate-400">
-                {p.name.slice(0, 2).toUpperCase()}
+              <div className="flex h-14 items-center justify-center" style={{ background: getCategoryColor(p.category?.name) }}>
+                <Icon size={26} strokeWidth={1.75} className="text-slate-700/70" />
               </div>
               <div className="flex-1 px-2 pt-1 text-sm font-semibold leading-tight">{p.name}</div>
               <div className="px-2 text-base font-extrabold">{fmtN(p.sellPrice)}</div>
@@ -133,7 +136,8 @@ export default function PosPage() {
                 {p.stock <= 0 ? "Out of stock" : `${p.stock} ${p.unit.name}`}
               </div>
             </button>
-          ))}
+            );
+          })}
           {products.length === 0 && <div className="col-span-full py-10 text-center text-slate-400">No products match.</div>}
         </div>
       </section>
