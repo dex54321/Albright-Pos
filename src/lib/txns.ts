@@ -275,7 +275,7 @@ export async function createSale(
       }
     }
     return sale;
-  });
+  }, { timeout: 15000 });
 }
 
 /**
@@ -343,7 +343,7 @@ export async function receiveCustomerPayment(
       details: `Received KES ${amount} by ${input.method}`,
     });
     return rec;
-  });
+  }, { timeout: 15000 });
 }
 
 export type PurchaseLineInput = { productId: number; qty: number; cost: number };
@@ -440,7 +440,7 @@ export async function createPurchase(
       details: `${sup.name}: KES ${total}, paid KES ${paid}`,
     });
     return purchase;
-  });
+  }, { timeout: 15000 });
 }
 
 export async function supplierBalance(tx: TX, supplierId: number): Promise<number> {
@@ -481,7 +481,7 @@ export async function paySupplier(
       });
     }
     await audit(tx, { userId: actor.id, userName: actor.name, action: "Payment", ref: sup.name, details: `Paid supplier KES ${amount} by ${input.method}` });
-  });
+  }, { timeout: 15000 });
 }
 
 export async function createCustomerReturn(
@@ -576,7 +576,7 @@ export async function createCustomerReturn(
       details: `${no}: KES ${total} (${input.reason})`,
     });
     return ret;
-  });
+  }, { timeout: 15000 });
 }
 
 export async function adjustStock(
@@ -608,5 +608,5 @@ export async function adjustStock(
       ref: p.name,
       details: `${input.type}: ${delta > 0 ? "+" : ""}${delta} (${input.reason})`,
     });
-  });
+  }, { timeout: 15000 });
 }
