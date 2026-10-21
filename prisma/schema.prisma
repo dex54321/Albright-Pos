@@ -400,3 +400,20 @@ model Settings {
   vatRate     Float   @default(16)
   creditDays  Int     @default(14)
 }
+enum MpesaStatus {
+  pending
+  success
+  failed
+}
+
+model MpesaTransaction {
+  id                Int         @id @default(autoincrement())
+  checkoutRequestId String      @unique
+  merchantRequestId String
+  phone             String
+  amount            Float
+  status            MpesaStatus @default(pending)
+  mpesaReceipt      String?
+  resultDesc        String?
+  createdAt         DateTime    @default(now())
+}
