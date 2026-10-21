@@ -5,7 +5,6 @@ import { signOut } from "next-auth/react";
 import { useState } from "react";
 import {
   LayoutDashboard,
-  Sparkles,
   ShoppingCart,
   Receipt,
   Package,
@@ -24,7 +23,6 @@ import {
 
 const NAV: [string, string, LucideIcon, string[]][] = [
   ["/dashboard", "Dashboard", LayoutDashboard, ["admin", "manager"]],
-  ["/assistant", "Shop Assistant", Sparkles, ["admin", "manager"]],
   ["/pos", "POS", ShoppingCart, ["admin", "manager", "cashier"]],
   ["/sales", "Sales & Returns", Receipt, ["admin", "manager", "cashier"]],
   ["/products", "Products", Package, ["admin", "manager"]],
