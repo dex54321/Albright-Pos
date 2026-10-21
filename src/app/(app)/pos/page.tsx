@@ -314,6 +314,9 @@ function PayModal({
   const [needApproval, setNeedApproval] = useState(false);
   const [apUser, setApUser] = useState("");
   const [apPass, setApPass] = useState("");
+  const [mpesaPhone, setMpesaPhone] = useState("");
+  const [pushState, setPushState] = useState<"idle" | "sending" | "waiting" | "success" | "failed">("idle");
+  const [manualMode, setManualMode] = useState(false);
 
   function switchMode(m: typeof mode) {
     setMode(m);
@@ -321,6 +324,9 @@ function PayModal({
     setMpesa(m === "mpesa" ? String(total) : "0");
     setCard(m === "card" ? String(total) : "0");
     setCredit(m === "credit" ? String(total) : "0");
+    setMpesaRef("");
+    setPushState("idle");
+    setManualMode(false);
   }
 
   const cashN = Number(cash) || 0;
@@ -330,6 +336,50 @@ function PayModal({
   const cashDue = Math.round((total - mpN - cdN - crN) * 100) / 100;
   const change = cashDue > 0.005 ? Math.round((cashN - cashDue) * 100) / 100 : 0;
   const short = cashDue > 0.005 && cashN < cashDue - 0.005;
+
+  async function sendStkPush() {
+    setErr("");
+    if (!mpesaPhone.trim()) {
+      setErr("Enter the customer's phone number");
+      return;
+    }
+    setPushState("sending");
+    try {
+      const r = await api<{ checkoutRequestId: string }>("/api/mpesa/stkpush", {
+        method: "POST",
+        body: JSON.stringify({ phone: mpesaPhone, amount: mpN }),
+      });
+      setPushState("waiting");
+      pollStatus(r.checkoutRequestId, 0);
+    } catch (e) {
+      setPushState("failed");
+      setErr((e as ApiError).message);
+    }
+  }
+
+  async function pollStatus(id: string, attempt: number) {
+    if (attempt > 20) {
+      setPushState("failed");
+      setErr("No response from the customer's phone. Try again or enter the code manually.");
+      return;
+    }
+    try {
+      const r = await api<{ status: string; mpesaReceipt: string | null; resultDesc: string | null }>(`/api/mpesa/status?id=${id}`);
+      if (r.status === "success") {
+        setPushState("success");
+        setMpesaRef(r.mpesaReceipt || "");
+        return;
+      }
+      if (r.status === "failed") {
+        setPushState("failed");
+        setErr(r.resultDesc || "Payment was not completed");
+        return;
+      }
+    } catch {
+      // keep polling even if one check fails
+    }
+    setTimeout(() => pollStatus(id, attempt + 1), 3000);
+  }
 
   async function submit(approvedBy?: number) {
     setErr("");
@@ -433,7 +483,33 @@ function PayModal({
           </div>
         </div>
       )}
-      {(mode === "mpesa" || (mode === "mixed" && mpN > 0)) && (
+      {(mode === "mpesa" || (mode === "mixed" && mpN > 0)) && !manualMode && (
+        <div className="mb-2 rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm">
+          <div className="mb-2 font-semibold text-emerald-900">Send a payment prompt to the customer&apos;s phone</div>
+          <label className="label">Customer phone number</label>
+          <input
+            className="input"
+            value={mpesaPhone}
+            onChange={(e) => setMpesaPhone(e.target.value)}
+            placeholder="07XXXXXXXX"
+            disabled={pushState === "sending" || pushState === "waiting"}
+          />
+          <button
+            type="button"
+            className="btn btn-pri mt-2 w-full"
+            disabled={pushState === "sending" || pushState === "waiting"}
+            onClick={sendStkPush}
+          >
+            {pushState === "sending" ? "Sending..." : pushState === "waiting" ? "Waiting for customer to enter PIN..." : `Send prompt for ${fmtN(mpN)}`}
+          </button>
+          {pushState === "success" && <div className="mt-2 font-semibold text-emerald-700">Paid - confirmation {mpesaRef}</div>}
+          {pushState === "failed" && <div className="mt-2 text-rose-600">Push failed or timed out.</div>}
+          <button type="button" className="mt-2 text-xs text-blue-600 underline" onClick={() => setManualMode(true)}>
+            Type the M-Pesa code manually instead
+          </button>
+        </div>
+      )}
+      {(mode === "mpesa" || mode === "mixed") && mpN > 0 && manualMode && (
         <div className="mb-2 rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm">
           <div className="mb-1 font-semibold text-emerald-900">Ask the customer to pay by M-Pesa:</div>
           <div className="text-emerald-900">M-Pesa &gt; Lipa na M-Pesa &gt; Paybill</div>
@@ -452,12 +528,11 @@ function PayModal({
             </div>
           </div>
           <div className="mt-1 text-xs text-emerald-800">Then type the M-Pesa code from their confirmation message below.</div>
-        </div>
-      )}
-      {(mode === "mpesa" || mode === "mixed") && (mode === "mpesa" || mpN > 0 || mode === "mixed") && (
-        <div className="mb-2">
-          <label className="label">M-Pesa transaction code</label>
+          <label className="label mt-2">M-Pesa transaction code</label>
           <input className="input" value={mpesaRef} onChange={(e) => setMpesaRef(e.target.value.toUpperCase())} placeholder="e.g. SGH7XY12AB" />
+          <button type="button" className="mt-2 text-xs text-blue-600 underline" onClick={() => setManualMode(false)}>
+            Send a phone prompt instead
+          </button>
         </div>
       )}
       {(mode === "credit" || mode === "mixed") && (
