@@ -6,5 +6,5 @@ export async function GET(req: NextRequest) {
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
   const txn = await prisma.mpesaTransaction.findUnique({ where: { checkoutRequestId: id } });
   if (!txn) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ status: txn.status, mpesaReceipt: txn.mpesaReceipt, resultDesc: txn.resultDesc });
+   return NextResponse.json({ ok: true, status: txn.status, mpesaReceipt: txn.mpesaReceipt, resultDesc: txn.resultDesc });
 }
