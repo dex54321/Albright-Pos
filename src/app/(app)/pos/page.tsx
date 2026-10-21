@@ -503,7 +503,7 @@ function PayModal({
             {pushState === "sending" ? "Sending..." : pushState === "waiting" ? "Waiting for customer to enter PIN..." : `Send prompt for ${fmtN(mpN)}`}
           </button>
           {pushState === "success" && <div className="mt-2 font-semibold text-emerald-700">Paid - confirmation {mpesaRef}</div>}
-          {pushState === "failed" && <div className="mt-2 text-rose-600">Push failed or timed out.</div>}
+         {pushState === "failed" && <div className="mt-2 text-rose-600">Payment not completed.</div>}
           <button type="button" className="mt-2 text-xs text-blue-600 underline" onClick={() => setManualMode(true)}>
             Type the M-Pesa code manually instead
           </button>
