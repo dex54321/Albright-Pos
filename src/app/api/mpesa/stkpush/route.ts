@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     await prisma.mpesaTransaction.create({
       data: { checkoutRequestId: result.CheckoutRequestID, merchantRequestId: result.MerchantRequestID, phone, amount },
     });
-    return NextResponse.json({ checkoutRequestId: result.CheckoutRequestID });
+      return NextResponse.json({ ok: true, checkoutRequestId: result.CheckoutRequestID });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message || "M-Pesa request failed" }, { status: 500 });
   }
